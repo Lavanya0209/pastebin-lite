@@ -1,47 +1,31 @@
 import { kv } from "@vercel/kv";
-import { v4 as uuidv4 } from "uuid";
+import { nanoid } from "nanoid";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { content, ttl_seconds, max_views } = req.body;
+  let body = req.body;
 
-  // Validate content
-  if (!content || typeof content !== "string" || content.trim() === "") {
+  // ✅ FIX: handle string body (Vercel behavior)
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      return res.status(400).json({ error: "Invalid JSON" });
+    }
+  }
+
+  const text = body?.text;
+
+  if (typeof text !== "string" || text.trim().length === 0) {
     return res.status(400).json({ error: "Invalid content" });
   }
 
-  // Validate ttl_seconds if provided
-  if (ttl_seconds !== undefined) {
-    if (!Number.isInteger(ttl_seconds) || ttl_seconds < 1) {
-      return res.status(400).json({ error: "Invalid ttl_seconds" });
-    }
-  }
+  const id = nanoid(8);
 
-  // Validate max_views if provided
-  if (max_views !== undefined) {
-    if (!Number.isInteger(max_views) || max_views < 1) {
-      return res.status(400).json({ error: "Invalid max_views" });
-    }
-  }
+  await kv.set(`paste:${id}`, text);
 
-  const id = uuidv4();
-  const now = Date.now();
-
-  const paste = {
-    content,
-    created_at: now,
-    expires_at: ttl_seconds ? now + ttl_seconds * 1000 : null,
-    max_views: max_views ?? null,
-    views: 0,
-  };
-
-  await kv.set(`paste:${id}`, paste);
-
-  res.status(200).json({
-    id,
-    url: `${req.headers.origin}/p/${id}`,
-  });
+  return res.status(201).json({ id });
 }
