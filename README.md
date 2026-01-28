@@ -11,3 +11,5 @@ npm run dev
 ## Persistence Layer
 This application uses Vercel KV (Redis) to ensure data persists across
 serverless requests and deployments.
+
+_Last updated by Lavanya_ 
